@@ -1,0 +1,56 @@
+version: '3.8'
+
+volumes:
+  data:
+
+services:
+  database:
+    image: postgres:13
+    ports: 
+      - 5438:5432
+    environment:
+      - POSTGRES_PASSWORD=123456
+    volumes:
+      - data:/data-docker/postgresql-data/data
+      - type: tmpfs
+        target: /dev/shm    
+    networks:
+        - rabbitmq_go_net  
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    environment:
+      RABBITMQ_DEFAULT_USER: "rabbitmq"
+      RABBITMQ_DEFAULT_PASS: "rabbitmq"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+        - ./data-docker/rabbitmq-data/data
+        - ./data-docker/rabbitmq-data/log
+    networks:
+        - rabbitmq_go_net
+  order:
+    image: order/app
+    build: ../order-v2
+    depends_on:
+      - database
+      - rabbitmq
+    ports:
+      - 8080
+    networks:
+        - rabbitmq_go_net
+  sub-order:
+    image: sub-order/app
+    build: ../sub-order
+    depends_on:
+      - database
+      - rabbitmq
+    ports:
+      - 8081
+    networks:
+        - rabbitmq_go_net
+
+networks:
+  rabbitmq_go_net:
+    driver: bridge
